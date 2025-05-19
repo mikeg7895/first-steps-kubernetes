@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CRUD de Tareas</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    li { margin: 5px 0; }
+    input[type="text"] { padding: 5px; }
+    button { margin-left: 5px; }
+  </style>
+</head>
+<body>
+  <h1>CRUD de Tareas</h1>
+
+  <label>IP del backend:</label>
+  <input type="text" id="backend-ip" placeholder="Ej: 192.168.1.100:8000" />
+  <button onclick="setApiUrl()">Conectar</button>
+
+  <br /><br />
+
+  <input type="text" id="new-task-title" placeholder="Nueva tarea" />
+  <button onclick="addTask()">Agregar</button>
+  <ul id="task-list"></ul>
+
+  <script>
+    let apiUrl = null;
+    
+    function setApiUrl() {
+      const ip = document.getElementById("backend-ip").value;
+      if (!ip) return;
+      apiUrl = `http://${ip}/tasks`;
+      fetchTasks();
+    }
+
+    async function fetchTasks() {
+      if (!apiUrl) return;
+      try {
+        const res = await fetch(apiUrl);
+        const tasks = await res.json();
+        const list = document.getElementById("task-list");
+        list.innerHTML = "";
+        tasks.forEach(task => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <input type="checkbox" ${task.completed ? "checked" : ""} onchange="toggleComplete(${task.id}, this.checked)" />
+            <span>${task.title}</span>
+            <button onclick="deleteTask(${task.id})">Eliminar</button>
+          `;
+          list.appendChild(li);
+        });
+      } catch (err) {
+        alert("No se pudo conectar al backend. Revisa la IP o que FastAPI esté corriendo.");
+      }
+    }
+
+    async function addTask() {
+      const titleInput = document.getElementById("new-task-title");
+      const title = titleInput.value.trim();
+      if (!title || !apiUrl) return;
+      await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: 0, title: title, completed: false }),
+      });
+      titleInput.value = "";
+      fetchTasks();
+    }
+
+    async function toggleComplete(id, completed) {
+      if (!apiUrl) return;
+      const res = await fetch(apiUrl);
+      const tasks = await res.json();
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      task.completed = completed;
+      await fetch(`${apiUrl}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(task),
+      });
+      fetchTasks();
+    }
+
+    async function deleteTask(id) {
+      if (!apiUrl) return;
+      await fetch(`${apiUrl}/${id}`, { method: "DELETE" });
+      fetchTasks();
+    }
+
+
+  </script>
+</body>
+</html>
+
